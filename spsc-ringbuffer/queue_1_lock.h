@@ -29,10 +29,12 @@ public:
         if (empty())return false;
         
         const lock_guard<mutex> lock(mutex_);
-
         *data = buffer_[read_idx_ % capacity_];
         read_idx_++;
         return true;
+    }
+    virtual void pop() override { // ensure queue is nonempty
+        read_idx_++;
     }
     
     virtual T* front() override {
@@ -41,7 +43,7 @@ public:
     }
 
     inline bool full() const override {
-        return ((write_idx_ + 1) % capacity_) == read_idx_;
+        return (write_idx_ - read_idx_) >= capacity_;
     }
 
     inline bool empty() const override {
