@@ -6,14 +6,17 @@ class QueueBase {
 public:
     using InnerType = T;
     virtual ~QueueBase() = default;
-    virtual bool enqueue(const T& data) = 0;
-    virtual bool dequeue(T* data) = 0;
-    virtual void pop() = 0;
 
-    virtual bool full() const = 0;
-    virtual bool empty() const = 0;
+    template <typename ...Args>
+    bool emplace(Args&& ...args) noexcept; // Move semantics
 
-    virtual T* front() = 0;
+    inline T* front() noexcept;
 
-    virtual size_t capacity() const = 0;
+    inline void pop();
+
+    inline bool full() const noexcept;
+    inline bool empty() const noexcept;
+
+
+    inline size_t capacity() const noexcept;
 };

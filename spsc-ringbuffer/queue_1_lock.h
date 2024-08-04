@@ -16,41 +16,43 @@ public:
     QueueV1(size_t capacity) : capacity_(capacity), read_idx_(0), write_idx_(0) {
         buffer_ = new T[capacity];
     };
-    virtual bool enqueue(const T& data) override {
-        if (full())return false;
+    
+    ~QueueV1() {
+        while (front())pop();
+        delete[] buffer_;
+    }
 
+    template<typename... Args>
+    bool emplace(Args&&... args) {
+        if (full())return false;
         const lock_guard<mutex> lock(mutex_);
-        
-        new (&buffer_[write_idx_ % capacity_]) T(data);
+        new (&buffer_[write_idx_ % capacity_])  T(std::forward<Args>(args)...);
         write_idx_++;
         return true;
     }
-    virtual bool dequeue(T* data) override {
-        if (empty())return false;
-        
+    
+    // pop and front with mutex
+
+    void pop() { // ensure queue is nonempty
         const lock_guard<mutex> lock(mutex_);
-        *data = buffer_[read_idx_ % capacity_];
-        read_idx_++;
-        return true;
-    }
-    virtual void pop() override { // ensure queue is nonempty
         read_idx_++;
     }
     
-    virtual T* front() override {
+    T* front() {
+        const lock_guard<mutex> lock(mutex_);
         if (empty())return nullptr;
         return &buffer_[read_idx_ % capacity_];
     }
 
-    inline bool full() const override {
+    inline bool full() const {
         return (write_idx_ - read_idx_) >= capacity_;
     }
 
-    inline bool empty() const override {
+    inline bool empty() const {
         return write_idx_ == read_idx_;
     }
 
-    virtual size_t capacity() const override {
+    inline size_t capacity() const {
         return capacity_;
     }
 };

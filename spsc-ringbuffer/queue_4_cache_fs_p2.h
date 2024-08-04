@@ -1,4 +1,3 @@
-// sysctl -w vm.nr_hugepages=512
 #pragma once
 
 #include <atomic>
@@ -10,11 +9,9 @@
 #include <bitset>
 
 using namespace std;
-template<class T, typename Allocator = std::allocator<T>>
-class QueueV5 : public QueueBase<T> {
+template<class T>
+class QueueV4 : public QueueBase<T> {
 public:
-    static_assert(atomic<size_t>::is_always_lock_free);
-
     static constexpr size_t kCacheLineSize =
       std::hardware_destructive_interference_size;
 
@@ -32,26 +29,17 @@ public:
 
 
     alignas(kCacheLineSize)
+    size_t capacity_;
+    size_t mask_;
+    
+
+    alignas(kCacheLineSize)
     T* buffer_;
 
 
-    alignas(kCacheLineSize)
-    size_t capacity_;
-    size_t mask_;
-    Allocator allocator_;
+    static_assert(atomic<size_t>::is_always_lock_free);
 
-    template <typename Alloc2, typename = void>
-    struct has_allocate_at_least : std::false_type {};
-
-    template <typename Alloc2>
-    struct has_allocate_at_least<
-        Alloc2, std::void_t<typename Alloc2::value_type,
-                            decltype(std::declval<Alloc2 &>().allocate_at_least(
-                                size_t{}))>> : std::true_type {};
-
-                
-
-    QueueV5(size_t capacity, const Allocator &allocator = Allocator()) : allocator_(allocator){  
+    QueueV4(size_t capacity) {
         // Make capacity a power of 2
         // make capacity largest power of 2 smaller than it
         size_t capacityp2 = 1 << (64 - __builtin_clzll(capacity) - 1);
@@ -61,28 +49,17 @@ public:
         assert((capacityp2 & (capacityp2 - 1)) == 0);
         capacity_ = capacityp2;
         mask_ = capacity_ - 1;
+        buffer_ = new T[capacity_];
 
-        size_t hp_num = ((capacity * sizeof(T)) / 1024 / 1024 / 2) + 1;
-    
-        // buffer_ = new T[capacity_];
-        if constexpr (has_allocate_at_least<Allocator>::value) {
-            // cout << "QueueV5 AtLeast Allocator" << endl;
-            auto res = allocator_.allocate_at_least(capacity_);
-            buffer_ = res.ptr;
-        } else {
-            // cout << "QueueV5 Normal Allocator" << endl;
-            buffer_ = std::allocator_traits<Allocator>::allocate(allocator_, capacity_);
-        }
-
-        static_assert(alignof(QueueV5<T>) == kCacheLineSize, "");
-        static_assert(sizeof(QueueV5<T>) >= 3 * kCacheLineSize, "");
+        static_assert(alignof(QueueV4<T>) == kCacheLineSize, "");
+        static_assert(sizeof(QueueV4<T>) >= 3 * kCacheLineSize, "");
     };
 
-    ~QueueV5() {
+    ~QueueV4() {
         while (front())pop();
-        // cout << "QueueV5 Deallocate" << endl;
-        std::allocator_traits<Allocator>::deallocate(allocator_, buffer_, capacity_);
+        delete[] buffer_;
     }
+
 
     template<typename... Args>
     bool emplace(Args&& ...args) noexcept {
