@@ -35,6 +35,7 @@ public:
 
     void pop() { // ensure queue is nonempty
         const lock_guard<mutex> lock(mutex_);
+        buffer_[read_idx_ % capacity_].~T();
         read_idx_++;
     }
     

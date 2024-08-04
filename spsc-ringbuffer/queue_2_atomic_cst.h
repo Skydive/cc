@@ -41,6 +41,7 @@ public:
     }
     void pop() noexcept { // ensure queue is nonempty
         size_t read_idx = read_idx_.load();
+        buffer_[read_idx % capacity_].~T();
         read_idx_.store(read_idx + 1);
     }
     
