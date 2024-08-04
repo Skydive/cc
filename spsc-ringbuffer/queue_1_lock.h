@@ -3,6 +3,8 @@
 #include <mutex>
 #include "queue_base.h"
 
+// TODO: Fix wraparound...
+
 using namespace std;
 template<class T>
 class QueueV1 : public QueueBase<T> {

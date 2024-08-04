@@ -64,7 +64,6 @@ public:
     template<typename... Args>
     bool emplace(Args&& ...args) noexcept {
         const size_t write_idx = write_idx_.load(memory_order_relaxed);
-        size_t read_idx = read_idx_.load(memory_order_relaxed);
         size_t next_write_idx = write_idx + 1;
 
         if((next_write_idx & mask_) == (read_idx_cache_ & mask_)) { // Could we be full? (relaxed)
